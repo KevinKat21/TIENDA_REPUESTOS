@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tienda de Repuestos — PRO</title>
+<style>
+  :root{
+    --bg:#f5f8fc; --panel:#ffffff; --accent:#0b74de; --muted:#6b7280;
+    --danger:#d32f2f; --success:#0f9d58; --soft:#eef6ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:#111}
+  header{background:linear-gradient(90deg,#0b74de,#1e90ff);color:white;padding:14px 20px;display:flex;align-items:center;gap:12px}
+  header h1{margin:0;font-size:18px}
+  .container{max-width:1200px;margin:18px auto;padding:0 12px}
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:16px}
+  nav{background:var(--panel);padding:14px;border-radius:10px;box-shadow:0 8px 28px rgba(11,20,40,0.06)}
+  nav .brand{font-weight:700;color:var(--accent);margin-bottom:8px}
+  nav button{display:block;width:100%;padding:10px;border-radius:8px;border:0;background:transparent;text-align:left;cursor:pointer;margin-bottom:8px;font-weight:600}
+  nav button.active{background:var(--soft);color:var(--accent)}
+  .panel{background:var(--panel);padding:14px;border-radius:10px;box-shadow:0 8px 28px rgba(11,20,40,0.06)}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+  input,select,textarea{padding:8px;border-radius:8px;border:1px solid #e6eef8}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:8px;border-bottom:1px solid #f0f4fb;text-align:left;font-size:14px}
+  th{font-weight:700}
+  .muted{color:var(--muted);font-size:13px}
+  .right{text-align:right}
+  .btn{background:var(--accent);color:white;padding:8px 10px;border-radius:8px;border:0;cursor:pointer}
+  .btn.ghost{background:transparent;color:var(--accent);border:1px solid #e6eefc}
+  .danger{background:var(--danger);color:white}
+  .flex{display:flex;gap:8px;align-items:center}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .small{font-size:13px}
+  footer{margin-top:12px;font-size:13px;color:var(--muted)}
+  @media(max-width:900px){.layout{grid-template-columns:1fr}.grid-2{grid-template-columns:1fr}}
+  /* modal */
+  .modal-back{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:none;align-items:center;justify-content:center;padding:12px;z-index:60}
+  .modal{background:white;padding:16px;border-radius:10px;max-width:760px;width:100%;box-shadow:0 20px 50px rgba(2,6,23,0.35)}
+  /* login */
+  .center-page{display:flex;align-items:center;justify-content:center;height:calc(100vh - 72px)}
+  .card-login{width:360px;padding:18px;border-radius:12px;background:var(--panel);box-shadow:0 10px 30px rgba(11,20,40,0.08)}
+  .logo{font-weight:800;color:var(--accent);font-size:20px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Tienda de Repuestos — PRO</h1>
+  <div class="muted" style="margin-left:auto">Offline • Local</div>
+</header>
+
+<div class="container" id="appRoot">
+  <!-- LOGIN (initial) -->
+  <div id="loginScreen" class="center-page">
+    <div class="card-login">
+      <div class="logo">Tienda • Admin</div>
+      <div class="muted">Ingresa tus credenciales</div>
+      <div style="margin-top:8px">
+        <input id="loginUser" placeholder="Usuario" value="admin" />
+        <input id="loginPass" placeholder="Contraseña" type="password" />
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn" onclick="login()">Entrar</button>
+          <button class="btn ghost" onclick="fillDemoCred()">Cred. Demo</button>
+        </div>
+        <div class="muted small" style="margin-top:8px">Usuario: <strong>admin</strong> • Pass: <strong>1234</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="mainApp" style="display:none">
+    <div class="layout">
+      <nav>
+        <div class="brand">Mi Repuestos</div>
+        <button id="nav-inv" class="active" onclick="showTab('inventario', this)">📦 Inventario</button>
+        <button id="nav-fac" onclick="showTab('facturacion', this)">🧾 Facturación</button>
+        <button id="nav-his" onclick="showTab('historial', this)">📚 Historial</button>
+        <button id="nav-report" onclick="showTab('reportes', this)">📊 Reportes</button>
+        <hr/>
+        <div style="margin-top:8px" class="toolbar">
+          <button class="btn" onclick="openProductModal()">+ Nuevo</button>
+          <button class="btn ghost" onclick="importSample()">Cargar ejemplo</button>
+          <button class="btn ghost" onclick="exportInventoryCSV()">Exportar inventario (CSV)</button>
+          <button class="btn ghost" onclick="exportAllInvoices()">Exportar facturas (CSV)</button>
+        </div>
+        <div style="margin-top:12px">
+          <button class="btn ghost" onclick="exportBackup()">Backup (Exportar JSON)</button>
+          <input id="fileImport" type="file" accept=".json" style="display:none" />
+          <button class="btn ghost" onclick="document.getElementById('fileImport').click()">Restaurar (Importar JSON)</button>
+        </div>
+        <div style="margin-top:14px">
+          <button class="btn ghost" onclick="logout()">Cerrar sesión</button>
+        </div>
+      </nav>
+
+      <div>
+        <!-- INVENTARIO -->
+        <div id="inventario" class="panel">
+          <div style="display:flex;align-items:center;gap:12px;justify-content:space-between">
+            <div><h3>Inventario</h3><div class="muted small">Administra tus repuestos</div></div>
+            <div class="muted small">Productos: <span id="invCount">0</span></div>
+          </div>
+
+          <div class="filters" style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input id="searchInv" placeholder="Buscar por nombre o SKU" style="min-width:260px" oninput="renderInventory()" />
+            <select id="filterStock" onchange="renderInventory()">
+              <option value="all">Todos</option>
+              <option value="in">Con stock</option>
+              <option value="out">Sin stock</option>
+            </select>
+            <select id="pageSize" onchange="renderInventory()"><option value="10">10 / pág</option><option value="25">25 / pág</option></select>
+            <div style="margin-left:auto" class="muted small">Ordenar: 
+              <button class="btn ghost" onclick="toggleSort('name')">Nombre</button>
+              <button class="btn ghost" onclick="toggleSort('qty')">Cant.</button>
+              <button class="btn ghost" onclick="toggleSort('price')">Precio</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;overflow:auto">
+            <table id="invTable">
+              <thead><tr><th>SKU</th><th>Nombre</th><th>Precio</th><th>Qty</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+            <div class="muted small" id="pageInfo">Página 1</div>
+            <div id="pager" class="flex"></div>
+          </div>
+        </div>
+
+        <!-- FACTURACIÓN -->
+        <div id="facturacion" class="panel" style="display:none">
+          <h3>Facturación</h3>
+          <div class="grid-2">
+            <div>
+              <label class="muted small">Producto</label>
+              <select id="selectProd"></select>
+            </div>
+            <div>
+              <label class="muted small">Cantidad</label>
+              <input id="sellQty" type="number" value="1" min="1" />
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+            <div id="priceInfo" class="muted small">Precio: -</div>
+            <div style="margin-left:auto" class="flex">
+              <input id="ivaPct" type="number" value="19" style="width:90px" /> <div class="muted small">IVA %</div>
+              <input id="discountCOP" type="number" value="0" style="width:140px;margin-left:8px" /> <div class="muted small">Descuento COP</div>
+              <button class="btn" onclick="addToCart()">Agregar</button>
+            </div>
+          </div>
+
+          <hr/>
+
+          <div style="overflow:auto">
+            <table id="cartTable">
+              <thead><tr><th>Producto</th><th>Qty</th><th>PU</th><th>Total</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:12px;align-items:center">
+            <div style="width:360px">
+              <div class="flex" style="justify-content:space-between"><div>Subtotal</div><div id="subtotalView">0</div></div>
+              <div class="flex" style="justify-content:space-between"><div>IVA</div><div id="ivaView">0</div></div>
+              <div class="flex" style="justify-content:space-between"><div>Descuento</div><div id="discountView">0</div></div>
+              <hr/>
+              <div class="flex" style="justify-content:space-between;font-weight:800"><div>Total</div><div id="totalView">0</div></div>
+              <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+                <button class="btn" onclick="finalizeSale()">Facturar & Descontar</button>
+                <button class="btn ghost" onclick="clearCart()">Vaciar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- HISTORIAL -->
+        <div id="historial" class="panel" style="display:none">
+          <h3>Historial de Facturas</h3>
+          <div id="invoicesList" style="max-height:400px;overflow:auto"></div>
+        </div>
+
+        <!-- REPORTES -->
+        <div id="reportes" class="panel" style="display:none">
+          <h3>Reportes</h3>
+          <div class="muted small">Resumen básico</div>
+          <pre id="reportSummary" class="muted" style="white-space:pre-wrap"></pre>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal product -->
+<div id="modal" class="modal-back"><div class="modal">
+  <h3 id="modalTitle">Nuevo producto</h3>
+  <div class="grid-2" style="margin-top:8px">
+    <div><label class="muted small">SKU</label><input id="m_sku" /></div>
+    <div><label class="muted small">Nombre</label><input id="m_name" /></div>
+  </div>
+  <div class="grid-2" style="margin-top:8px">
+    <div><label class="muted small">Precio (COP)</label><input id="m_price" type="number" /></div>
+    <div><label class="muted small">Cantidad</label><input id="m_qty" type="number" /></div>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+    <button class="btn ghost" onclick="closeModal()">Cancelar</button>
+    <button class="btn" onclick="saveModalProduct()">Guardar</button>
+  </div>
+</div></div>
+
+<script>
+/* ------------------ App state & keys ------------------ */
+const KEY_INV = 'tienda_v2_inventory';
+const KEY_INVOS = 'tienda_v2_invoices';
+let inventory = [];
+let invoices = [];
+let cart = [];
+let sortState = {key:'name',dir:1};
+let currentPage = 1;
+
+/* ------------------ Login ------------------ */
+function fillDemoCred(){ $('loginUser').value='admin'; $('loginPass').value='1234'; }
+function login(){
+  const u = $('loginUser').value.trim();
+  const p = $('loginPass').value.trim();
+  if(u==='admin' && p==='1234'){ // simple auth
+    $('loginScreen').style.display='none';
+    $('mainApp').style.display='';
+    loadData(); renderInventory(); populateSelect(); renderInvoices(); renderReport();
+  } else alert('Credenciales incorrectas');
+}
+function logout(){
+  if(confirm('Cerrar sesión?')){ $('mainApp').style.display='none'; $('loginScreen').style.display='flex'; }
+}
+
+/* ------------------ Helpers ------------------ */
+function $(id){ return document.getElementById(id); }
+function currency(n){ return Number(n).toLocaleString('es-CO',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+/* ------------------ Persistence ------------------ */
+function loadData(){
+  inventory = JSON.parse(localStorage.getItem(KEY_INV) || '[]');
+  invoices = JSON.parse(localStorage.getItem(KEY_INVOS) || '[]');
+}
+function saveInventory(){ localStorage.setItem(KEY_INV, JSON.stringify(inventory)); }
+function saveInvoices(){ localStorage.setItem(KEY_INVOS, JSON.stringify(invoices)); }
+
+/* ------------------ Inventory UI ------------------ */
+function renderInventory(){
+  const tbody = $('invTable').querySelector('tbody'); tbody.innerHTML='';
+  const term = $('searchInv').value.trim().toLowerCase();
+  const filter = $('filterStock').value;
+  const per = parseInt($('pageSize').value) || 10;
+
+  let list = inventory.filter(i=>{
+    if(term) return ( (i.name||'').toLowerCase().includes(term) || (i.sku||'').toLowerCase().includes(term) );
+    return true;
+  }).filter(i=>{
+    if(filter==='in') return i.qty>0;
+    if(filter==='out') return i.qty<=0;
+    return true;
+  });
+
+  list.sort((a,b)=>{
+    const k = sortState.key;
+    let va = a[k], vb = b[k];
+    if(k==='name' || k==='sku'){ va = String(va||'').toLowerCase(); vb = String(vb||'').toLowerCase(); if(va<vb) return -1*sortState.dir; if(va>vb) return 1*sortState.dir; return 0; }
+    return (Number(va)-Number(vb))*sortState.dir;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(list.length / per));
+  if(currentPage>totalPages) currentPage = totalPages;
+  const start = (currentPage-1)*per;
+  const pageItems = list.slice(start, start+per);
+
+  pageItems.forEach(p=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${p.sku||''}</td>
+                    <td>${p.name}</td>
+                    <td class="right">${currency(p.price)}</td>
+                    <td class="right">${p.qty}</td>
+                    <td class="right">
+                      <button class="btn ghost" onclick='openProductModal(${JSON.stringify(p)})'>Editar</button>
+                      <button class="btn ghost" onclick="quickAdd('${p.sku}')">+1</button>
+                      <button class="btn ghost" onclick="deleteProduct('${p.sku}')">Eliminar</button>
+                    </td>`;
+    tbody.appendChild(tr);
+  });
+
+  $('invCount').innerText = inventory.length;
+  $('pageInfo').innerText = `Página ${currentPage} / ${totalPages} (${list.length} items)`;
+
+  // pager
+  const pager = $('pager'); pager.innerHTML='';
+  const first = makePagerBtn('<<', ()=>{ currentPage=1; renderInventory(); });
+  const prev = makePagerBtn('<', ()=>{ if(currentPage>1) currentPage--; renderInventory(); });
+  pager.appendChild(first); pager.appendChild(prev);
+  for(let i=1;i<=totalPages;i++){
+    const b = makePagerBtn(i, ()=>{ currentPage=i; renderInventory(); });
+    b.className = (i===currentPage)?'btn': 'btn ghost';
+    pager.appendChild(b);
+  }
+  const next = makePagerBtn('>', ()=>{ if(currentPage<totalPages) currentPage++; renderInventory(); });
+  const last = makePagerBtn('>>', ()=>{ currentPage=totalPages; renderInventory(); });
+  pager.appendChild(next); pager.appendChild(last);
+}
+function makePagerBtn(text,fn){ const b=document.createElement('button'); b.className='btn ghost'; b.innerText=text; b.onclick=fn; return b; }
+function toggleSort(k){ if(sortState.key===k) sortState.dir = -sortState.dir; else { sortState.key=k; sortState.dir=1; } renderInventory(); }
+function deleteProduct(sku){ if(!confirm('Eliminar producto?')) return; inventory = inventory.filter(i=>i.sku!==sku); saveInventory(); renderInventory(); populateSelect(); }
+function quickAdd(sku){ const p = inventory.find(i=>i.sku===sku); if(!p) return; p.qty = (p.qty||0)+1; saveInventory(); renderInventory(); populateSelect(); }
+
+function openProductModal(edit=null){
+  $('modal').style.display='flex';
+  if(edit){
+    $('modalTitle').innerText='Editar producto';
+    $('m_sku').value = edit.sku; $('m_sku').disabled=true;
+    $('m_name').value = edit.name; $('m_price').value = edit.price; $('m_qty').value = edit.qty;
+  } else {
+    $('modalTitle').innerText='Nuevo producto';
+    $('m_sku').disabled=false; $('m_sku').value=''; $('m_name').value=''; $('m_price').value='0'; $('m_qty').value='0';
+  }
+}
+function closeModal(){ $('modal').style.display='none'; }
+function saveModalProduct(){
+  const sku = $('m_sku').value.trim(); const name = $('m_name').value.trim();
+  const price = parseFloat($('m_price').value)||0; const qty = parseInt($('m_qty').value)||0;
+  if(!sku || !name) return alert('SKU y nombre son obligatorios');
+  const idx = inventory.findIndex(i=>i.sku===sku);
+  if(idx>=0){ inventory[idx].name=name; inventory[idx].price=price; inventory[idx].qty=qty; }
+  else { inventory.push({sku,name,price,qty}); }
+  saveInventory(); closeModal(); renderInventory(); populateSelect();
+}
+
+/* ------------------ Sample / import / export ------------------ */
+function importSample(){
+  const sample = [
+    {sku:'PST-001',name:'Pastilla de freno',price:45000,qty:25},
+    {sku:'FIL-002',name:'Filtro de aceite',price:38000,qty:40},
+    {sku:'BTE-003',name:'Batería 12V',price:220000,qty:10},
+    {sku:'LMP-004',name:'Lámpara H4',price:22000,qty:50}
+  ];
+  sample.forEach(s=>{ if(!inventory.some(i=>i.sku===s.sku)) inventory.push(s); });
+  saveInventory(); renderInventory(); populateSelect(); alert('Ejemplo cargado');
+}
+
+function exportInventoryCSV(){
+  if(inventory.length===0) return alert('Inventario vacío');
+  const rows = ['SKU,Nombre,Precio,Qty', ...inventory.map(i=>`${i.sku},"${i.name}",${i.price},${i.qty}`)];
+  downloadBlob(rows.join('\n'), 'inventario.csv', 'text/csv;charset=utf-8;');
+}
+function exportAllInvoices(){
+  if(invoices.length===0) return alert('No hay facturas');
+  const rows = ['Factura,Fecha,Total'];
+  invoices.forEach(inv=> rows.push(`${inv.id},"${inv.date}",${inv.total}`));
+  downloadBlob(rows.join('\n'), 'facturas_totales.csv', 'text/csv;charset=utf-8;');
+}
+function downloadBlob(content, filename, mime){
+  const blob = new Blob([content],{type:mime}); const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+}
+
+/* ------------------ Facturación ------------------ */
+function populateSelect(){
+  const sel = $('selectProd'); sel.innerHTML = '<option value="">-- Seleccione --</option>';
+  inventory.forEach(i=> sel.innerHTML += `<option value="${i.sku}">${i.sku} — ${i.name} (Disp: ${i.qty}) — ${currency(i.price)}</option>`);
+  $('selectProd').onchange = ()=>{ const p = inventory.find(x=>x.sku==$('selectProd').value); $('priceInfo').innerText = p ? `Precio: ${currency(p.price)} • Disp: ${p.qty}` : 'Precio: -'; };
+}
+function addToCart(){
+  const sku = $('selectProd').value; if(!sku) return alert('Selecciona producto');
+  const qty = parseInt($('sellQty').value)||1; if(qty<=0) return alert('Cantidad inválida');
+  const p = inventory.find(i=>i.sku===sku); if(!p) return alert('Producto no encontrado');
+  if(qty > p.qty) return alert('No hay suficiente stock');
+  const ex = cart.find(c=>c.sku===sku);
+  if(ex){ if(ex.qty + qty > p.qty) return alert('Al sumar excede stock'); ex.qty += qty; ex.total = ex.qty*ex.price; } 
+  else cart.push({sku:p.sku,name:p.name,price:p.price,qty:qty,total:qty*p.price});
+  renderCart();
+}
+function renderCart(){
+  const tbody = $('cartTable').querySelector('tbody'); tbody.innerHTML='';
+  cart.forEach((c,idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${c.name}</td><td class="right">${c.qty}</td><td class="right">${currency(c.price)}</td><td class="right">${currency(c.total)}</td><td class="right"><button class="btn ghost" onclick="removeCart(${idx})">Quitar</button></td>`;
+    tbody.appendChild(tr);
+  });
+  updateTotals();
+}
+function removeCart(i){ cart.splice(i,1); renderCart(); }
+function clearCart(){ if(!confirm('Vaciar carrito?')) return; cart=[]; renderCart(); }
+
+function updateTotals(){
+  const subtotal = cart.reduce((s,i)=>s + (i.qty*i.price),0);
+  const ivaPct = parseFloat($('ivaPct').value)||0;
+  const discount = parseFloat($('discountCOP').value)||0;
+  const ivaAmt = subtotal * (ivaPct/100);
+  let total = subtotal + ivaAmt - discount; if(total<0) total=0;
+  $('subtotalView').innerText = currency(subtotal);
+  $('ivaView').innerText = currency(ivaAmt);
+  $('discountView').innerText = currency(discount);
+  $('totalView').innerText = currency(total);
+}
+
+function finalizeSale(){
+  if(cart.length===0) return alert('Carrito vacío');
+  // validate stock
+  for(const it of cart){ const p = inventory.find(x=>x.sku===it.sku); if(!p || p.qty < it.qty) return alert(`Stock insuficiente para ${it.name}`); }
+  const subtotal = cart.reduce((s,i)=>s + (i.qty*i.price),0);
+  const ivaPct = parseFloat($('ivaPct').value)||0; const ivaAmt = subtotal*(ivaPct/100);
+  const discount = parseFloat($('discountCOP').value)||0;
+  let total = subtotal + ivaAmt - discount; if(total<0) total=0;
+  const now = new Date();
+  const inv = { id:'F-'+now.getTime(), date:now.toISOString(), items: JSON.parse(JSON.stringify(cart)), subtotal, ivaPct, ivaAmt, discount, total };
+  // decrement inventory
+  cart.forEach(it=>{ const p = inventory.find(x=>x.sku===it.sku); if(p){ p.qty -= it.qty; if(p.qty<0) p.qty=0; } });
+  invoices.unshift(inv); saveInventory(); saveInvoices();
+  cart = []; renderCart(); renderInventory(); renderInvoices(); populateSelect(); renderReport();
+  alert('Factura registrada. ID: '+inv.id);
+}
+
+/* ------------------ Invoices UI ------------------ */
+function renderInvoices(){
+  const wrap = $('invoicesList'); wrap.innerHTML='';
+  if(invoices.length===0){ wrap.innerHTML = '<div class="muted">No hay facturas guardadas</div>'; return; }
+  invoices.forEach(inv=>{
+    const div = document.createElement('div'); div.className='panel'; div.style.marginBottom='8px';
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center">
+      <div><strong>${inv.id}</strong><div class="muted small">${(new Date(inv.date)).toLocaleString()}</div></div>
+      <div style="text-align:right"><strong>${currency(inv.total)}</strong><div class="muted small">Items: ${inv.items.length}</div></div>
+    </div>`;
+    html += `<div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">
+      <button class="btn ghost" onclick="viewInvoice('${inv.id}')">Ver</button>
+      <button class="btn ghost" onclick="exportInvoiceCSV('${inv.id}')">Exportar</button>
+      <button class="btn ghost" onclick="deleteInvoice('${inv.id}')">Eliminar</button>
+    </div>`;
+    div.innerHTML = html;
+    wrap.appendChild(div);
+  });
+}
+
+function viewInvoice(id){
+  const inv = invoices.find(i=>i.id===id); if(!inv) return alert('No encontrada');
+  let txt = `Factura ${inv.id}\nFecha: ${new Date(inv.date).toLocaleString()}\n\nProductos:\n`;
+  inv.items.forEach(it=> txt += `- ${it.name} | ${it.qty} x ${currency(it.price)} = ${currency(it.qty*it.price)}\n`);
+  txt += `\nSubtotal: ${currency(inv.subtotal)}\nIVA (${inv.ivaPct}%): ${currency(inv.ivaAmt)}\nDescuento: ${currency(inv.discount)}\nTOTAL: ${currency(inv.total)}`;
+  const w = window.open('','_blank','toolbar=0'); w.document.write('<pre style="font-family:Arial;white-space:pre-wrap">'+txt+'</pre>'); w.document.title='Factura '+inv.id;
+  const btn = w.document.createElement('button'); btn.innerText='Imprimir / Guardar PDF'; btn.style.padding='8px 12px'; btn.style.margin='8px'; btn.onclick = ()=> w.print(); w.document.body.insertBefore(btn, w.document.body.firstChild);
+}
+
+function deleteInvoice(id){ if(!confirm('Eliminar factura?')) return; invoices = invoices.filter(i=>i.id!==id); saveInvoices(); renderInvoices(); renderReport(); }
+function exportInvoiceCSV(id){
+  const inv = invoices.find(i=>i.id===id); if(!inv) return alert('No encontrada');
+  const rows = ['Factura,Fecha,SKU,Nombre,PU,Cantidad,TotalLinea'];
+  inv.items.forEach(it=> rows.push(`${inv.id},"${inv.date}",${it.sku},"${it.name}",${it.price},${it.qty},${it.price*it.qty}`));
+  rows.push(`,,,Subtotal,${inv.subtotal}`); rows.push(`,,,IVA,${inv.ivaAmt}`); rows.push(`,,,Descuento,${inv.discount}`); rows.push(`,,,Total,${inv.total}`);
+  downloadBlob(rows.join('\n'), inv.id + '.csv', 'text/csv;charset=utf-8;');
+}
+
+/* ------------------ Reports ------------------ */
+function renderReport(){
+  const totalProducts = inventory.length;
+  const totalUnits = inventory.reduce((s,i)=>s + (i.qty||0),0);
+  const stockValue = inventory.reduce((s,i)=>s + ((i.qty||0)*(i.price||0)),0);
+  const totalSales = invoices.reduce((s,i)=>s + (i.total||0),0);
+  const summary = `Productos: ${totalProducts}\nUnidades en stock: ${totalUnits}\nValor aproximado inventario: ${currency(stockValue)}\nFacturas: ${invoices.length}\nVentas totales: ${currency(totalSales)}`;
+  $('reportSummary').innerText = summary;
+}
+
+/* ------------------ Backup / Restore ------------------ */
+function exportBackup(){
+  const payload = { inventory, invoices, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(payload,null,2)], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'tienda_backup_' + (new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')) + '.json'; a.click(); URL.revokeObjectURL(url);
+}
+$('fileImport').addEventListener('change', (e)=>{ if(e.target.files && e.target.files[0]) importBackupFile(e.target.files[0]); });
+function importBackupFile(file){ const reader = new FileReader(); reader.onload = function(evt){ try{ const data = JSON.parse(evt.target.result); if(!data || !Array.isArray(data.inventory) || !Array.isArray(data.invoices)) return alert('Archivo inválido'); if(!confirm('Reemplazar inventario y facturas actuales?')) return; inventory = data.inventory; invoices = data.invoices; saveInventory(); saveInvoices(); renderInventory(); renderInvoices(); populateSelect(); renderReport(); alert('Restauración completada'); }catch(err){ alert('Error leyendo archivo: '+err.message); } }; reader.readAsText(file); }
+
+/* ------------------ Tabs, init ------------------ */
+function showTab(id,btn){ document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); ['inventario','facturacion','historial','reportes'].forEach(s=>{ $(s).style.display = (s===id)?'block':'none'; }); if(id==='facturacion') populateSelect(); if(id==='historial') renderInvoices(); if(id==='reportes') renderReport(); }
+
+window.addEventListener('load', ()=>{
+  // try auto-login if already in localStorage? keep simple: show login
+  // attach modal backdrop close
+  $('modal').addEventListener('click', (e)=>{ if(e.target===$('modal')) closeModal(); });
+});
+
+/* ------------------ Utility to expose elements used earlier ------------------ */
+function renderInvoices(){ renderInvoices = renderInvoices; } // placeholder to avoid lint issues
+
+// Ensure initial empty load of functions used earlier
+(function init(){
+  // small safeguard to prevent old references in editors
+  window.renderInvoices = function(){ 
+    const wrap = $('invoicesList'); wrap.innerHTML=''; 
+    if(invoices.length===0){ wrap.innerHTML='<div class=\"muted\">No hay facturas guardadas</div>'; return; }
+    invoices.forEach(inv=>{
+      const div = document.createElement('div'); div.className='panel'; div.style.marginBottom='8px';
+      div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+        <div><strong>${inv.id}</strong><div class="muted small">${(new Date(inv.date)).toLocaleString()}</div></div>
+        <div style="text-align:right"><strong>${currency(inv.total)}</strong><div class="muted small">Items: ${inv.items.length}</div></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">
+        <button class="btn ghost" onclick="viewInvoice('${inv.id}')">Ver</button>
+        <button class="btn ghost" onclick="exportInvoiceCSV('${inv.id}')">Exportar</button>
+        <button class="btn ghost" onclick="deleteInvoice('${inv.id}')">Eliminar</button>
+      </div>`;
+      wrap.appendChild(div);
+    });
+  };
+
+  // small helper to prevent console errors if elements not yet present
+  window.populateSelect = function(){ 
+    const sel = $('selectProd'); if(!sel) return; sel.innerHTML = '<option value=\"\">-- Seleccione --</option>';
+    inventory.forEach(i=> sel.innerHTML += `<option value=\"${i.sku}\">${i.sku} — ${i.name} (Disp: ${i.qty}) — ${currency(i.price)}</option>`);
+    sel.onchange = ()=>{ const p = inventory.find(x=>x.sku==$('selectProd').value); $('priceInfo').innerText = p ? `Precio: ${currency(p.price)} • Disp: ${p.qty}` : 'Precio: -'; };
+  };
+
+  // load data if login was skipped
+  loadData();
+  renderInventory();
+  renderInvoices();
+  renderReport();
+
+  // file import hookup
+  const fi = document.getElementById('fileImport'); if(fi) fi.addEventListener('change', (e)=>{ if(e.target.files && e.target.files[0]) importBackupFile(e.target.files[0]); });
+})();
+</script>
+
+<footer style="max-width:1200px;margin:18px auto;padding:0 12px">
+  <div class="muted small">Hecho por ChatGPT — Versión local. Para multiusuario y respaldo en la nube, puedo ayudarte a migrar a Firebase/MySQL.</div>
+</footer>
+</body>
+</html>
